@@ -1,0 +1,33 @@
+# 기본 무시 항목
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# 빌드 캐시 및 임시 파일
+*.tmp
+*.wal
+*.shm
+*.log
+*.tsbuildinfo
+*.pem
+.DS_Store
+
+# Android/iOS 키 및 인증서
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# 시스템 관련
+AppData/
+.history/
+*.orig.*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
