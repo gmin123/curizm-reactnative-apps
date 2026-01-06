@@ -1,99 +1,64 @@
-import { appleLogin } from "@/api/account/snslogin";
+import { useAuth } from "@/app/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
-const GOOGLE_AUTH_URL = "https://api.curizm.io/api/v1/auth/google?mobile=true";
-const KAKAO_AUTH_URL = "https://api.curizm.io/api/v1/auth/kakao?mobile=true";
-
-// 🔥 가장 안정적인 Redirect URI
-const REDIRECT_URI = Linking.createURL("oauth");
+import { googleLogin, kakaoLogin } from "@/api/account/snslogin";
 
 export default function LoginChoiceScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const { login } = useAuth();
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
   }, []);
 
-  const saveTokens = async (accessToken: string, refreshToken: string) => {
-    await SecureStore.setItemAsync("accessToken", accessToken);
-    await SecureStore.setItemAsync("refreshToken", refreshToken);
-    console.log("✅ 토큰 저장 완료");
-  };
-
-  // 🔥 SNS 공통 OAuth
-  const handleOAuthLogin = async (type: "google" | "kakao") => {
+const handleSNSLogin = async (type: "google" | "kakao") => {
     setLoading(true);
-    const authUrl = type === "google" ? GOOGLE_AUTH_URL : KAKAO_AUTH_URL;
 
     try {
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
-      console.log("🌐 OAuth 결과:", result);
+      const result =
+        type === "google" ? await googleLogin() : await kakaoLogin();
 
-      if (result.type !== "success" || !result.url) {
-        console.warn("⚠️ 로그인 취소 또는 실패:", result.type);
+      if (!result) {
+        Alert.alert("로그인 실패", "SNS 로그인에 실패했습니다.");
         return;
       }
 
-      const parsed = Linking.parse(result.url);
-      console.log("📌 파싱 결과:", parsed);
+      const { accessToken, member } = result;
 
-      const accessToken = parsed.queryParams?.accessToken;
-      const refreshToken = parsed.queryParams?.refreshToken;
+      // 🔥🔥🔥 핵심: AuthContext에 로그인 알림
+      await login(
+        member.email,
+        accessToken,
+        member.name,
+        member.profileImg
+      );
 
-      const errorCode = parsed.queryParams?.errorCode;
-      const message = parsed.queryParams?.message;
+      console.log("✅ AuthContext 로그인 완료:", member.email);
 
-      if (errorCode) {
-        console.warn("❌ SNS 로그인 에러:", errorCode, message);
-        return;
-      }
-
-      if (accessToken && refreshToken) {
-        await saveTokens(accessToken, refreshToken);
-        router.replace("/(mainpage)/home");
-        return;
-      }
-
-      console.warn("❗ 토큰 누락. query:", parsed.queryParams);
-
+      router.replace("/(mainpage)");
     } catch (e) {
-      console.error("❌ OAuth 오류:", e);
-    } finally {
-      setLoading(false);
-      return false;
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    setLoading(true);
-    try {
-      const success = await appleLogin();
-      if (success) {
-        router.replace("/(mainpage)/home");
-      }
-    } catch (e) {
-      console.error("❌ Apple 로그인 오류:", e);
+      console.error("❌ SNS 로그인 오류:", e);
     } finally {
       setLoading(false);
     }
   };
+
+
 
   return (
     <SafeAreaView style={s.safe}>
@@ -115,18 +80,24 @@ export default function LoginChoiceScreen() {
         </View>
 
         {appleAvailable && (
-          <TouchableOpacity style={s.appleBtn} onPress={handleAppleLogin}>
+          <TouchableOpacity style={s.appleBtn}>
             <Ionicons name="logo-apple" size={18} color="#fff" />
             <Text style={s.appleBtnText}>Apple로 계속하기</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={s.kakaoBtn} onPress={() => handleOAuthLogin("kakao")}>
+        <TouchableOpacity
+          style={s.kakaoBtn}
+          onPress={() => handleSNSLogin("kakao")}
+        >
           <Ionicons name="chatbubble-ellipses" size={18} color="#111" />
           <Text style={s.kakaoText}>카카오로 계속하기</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.googleBtn} onPress={() => handleOAuthLogin("google")}>
+        <TouchableOpacity
+          style={s.googleBtn}
+          onPress={() => handleSNSLogin("google")}
+        >
           <Ionicons name="logo-google" size={18} color="#111" />
           <Text style={s.googleText}>구글로 계속하기</Text>
         </TouchableOpacity>
@@ -142,7 +113,6 @@ export default function LoginChoiceScreen() {
           <Text style={s.bottomText}>이미 계정이 있나요? </Text>
           <TouchableOpacity
             onPress={() => router.push("/(Login)/LoginFormScreen")}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Text style={s.bottomLink}>로그인</Text>
           </TouchableOpacity>
@@ -157,6 +127,7 @@ export default function LoginChoiceScreen() {
     </SafeAreaView>
   );
 }
+
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },

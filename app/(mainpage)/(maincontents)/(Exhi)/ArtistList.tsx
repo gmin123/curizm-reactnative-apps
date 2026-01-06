@@ -49,7 +49,7 @@ export const ArtistList: React.FC<Props> = ({ exhibitionId }) => {
   const renderItem = ({ item }: { item: ExhibitionArtist }) => (
     <Pressable style={S.row} onPress={() => handlePressArtist(item)}>
       <Image
-        source={item.profileImg ? { uri: item.profileImg } : require('../../../../assets/images/icon.png')}
+        source={item.profileImg ? { uri: item.profileImg } : require('../../../../assets/images/Cicon.png')}
         style={S.avatar}
       />
       <View style={S.meta}>

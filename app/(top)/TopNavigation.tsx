@@ -1,5 +1,5 @@
 import { useAuth } from "@/app/context/AuthContext";
-import clogo from "@/assets/images/icon.png";
+import clogo from "@/assets/images/Cicon.png";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";

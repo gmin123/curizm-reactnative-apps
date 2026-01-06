@@ -2,14 +2,14 @@ import CustomText from "@/app/components/CustomeText";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Exhibition, getFilteredExhibitions } from "../../../../api/ExhibitionListSwiper";
 import DropdownButton from "../dropdownbtn";
@@ -182,7 +182,7 @@ export default function ExhibitionListSwiper({ style }: ExhibitionListSwiperProp
                         source={
                           exhibit.coverImage
                             ? { uri: exhibit.coverImage }
-                            : require("../../../../assets/images/icon.png")
+                            : require("../../../../assets/images/Cicon.png")
                         }
                         style={styles.image}
                       />

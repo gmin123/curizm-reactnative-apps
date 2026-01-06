@@ -200,7 +200,7 @@ const goToAudioPlayer = async (artist: ExhibitionArtist) => {
         source={
           item.profileImg
             ? { uri: item.profileImg }
-            : require("../../../../assets/images/icon.png")
+            : require("../../../../assets/images/Cicon.png")
         }
         style={S.avatar}
       />

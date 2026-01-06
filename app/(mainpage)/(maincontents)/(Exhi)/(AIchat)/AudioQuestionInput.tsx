@@ -50,7 +50,7 @@ const defaultItem = {
   exhibitionId: "",
 };
 
-const defaultThumbnail = require("../../../../../assets/images/icon.png");
+const defaultThumbnail = require("../../../../../assets/images/Cicon.png");
 
 export default function AudioQuestionInput({
   item,

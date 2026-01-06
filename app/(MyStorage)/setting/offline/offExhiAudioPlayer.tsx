@@ -217,7 +217,7 @@ export default function OffExhiAudioPlayer({
           source={
             currentItem.thumbnail
               ? { uri: currentItem.thumbnail }
-              : require("../../../../assets/images/icon.png")
+              : require("../../../../assets/images/Cicon.png")
           }
           style={styles.coverImage}
           resizeMode="cover"

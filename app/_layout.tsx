@@ -1,48 +1,65 @@
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+
 import MiniAudioPlayer from "./(mainpage)/(maincontents)/(Exhi)/MiniAudioPlayer";
 import { AuthProvider } from "./context/AuthContext";
 import { AudioPlayerProvider } from "./store/AudioPlayerContext";
 
 export default function RootLayout() {
+  // 1️⃣ Hooks는 무조건 최상단
   const [fontsLoaded] = useFonts({
     "Pretendard-Regular": require("../assets/fonts/PretendardVariable.ttf"),
     "Pretendard-Medium": require("../assets/fonts/PretendardVariable.ttf"),
     "Pretendard-Bold": require("../assets/fonts/PretendardVariable.ttf"),
   });
 
+  useEffect(() => {
+    console.log("✅ RootLayout mounted");
+  }, []);
+
+  // 2️⃣ return 전에 Hook 더 쓰면 ❌
   if (!fontsLoaded) {
-    return null; // 폰트가 로드될 때까지 대기
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
+  // 3️⃣ 여기부터는 안전
   return (
     <AuthProvider>
-    <AudioPlayerProvider>
-      
-      <Stack screenOptions={{ headerShown: false }}>
-        {/* 메인 페이지 - 기본 라우트 */}
-        <Stack.Screen name="(mainpage)" options={{ headerShown: false }} />
-        
-        {/* 검색 페이지 */}
-        <Stack.Screen name="(search)" options={{ headerShown: false }} />
-        
-        {/* 마이 스토리지 페이지 */}
-        <Stack.Screen name="(MyStroage)" options={{ headerShown: false }} />
-        
-        {/* 로그인 페이지 */}
-        <Stack.Screen name="(Login)" options={{ headerShown: false }} />
-        
-        {/* 홈 페이지 */}
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        
-        {/* 설정 페이지 */}
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        
-        {/* 기본 라우트를 (mainpage)로 설정 */}
-        <Stack.Screen name="index" redirect />
+      <AudioPlayerProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          {/* 최초 진입 → index.tsx */}
+          <Stack.Screen name="index" />
 
-      </Stack>
-    
+          {/* OAuth redirect */}
+          <Stack.Screen name="oauth" />
+
+          {/* 로그인 */}
+          <Stack.Screen name="(Login)" />
+
+          {/* 메인 */}
+          <Stack.Screen name="(mainpage)" />
+
+          {/* 기타 */}
+          <Stack.Screen name="(search)" />
+          <Stack.Screen name="(MyStroage)" />
+          <Stack.Screen name="home" />
+          <Stack.Screen name="settings" />
+        </Stack>
+
+        {/* 전역 미니 플레이어 */}
         <MiniAudioPlayer />
       </AudioPlayerProvider>
     </AuthProvider>

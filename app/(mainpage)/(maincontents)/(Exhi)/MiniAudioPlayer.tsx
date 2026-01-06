@@ -60,7 +60,7 @@ export default function MiniAudioPlayer() {
   return (
     <TouchableOpacity style={styles.miniPlayerWrap} onPress={handleMiniPlayerPress} activeOpacity={0.8}>
       <Image
-        source={currentItem.thumbnail ? { uri: currentItem.thumbnail } : require("../../../../assets/images/icon.png")}
+        source={currentItem.thumbnail ? { uri: currentItem.thumbnail } : require("../../../../assets/images/Cicon.png")}
         style={styles.coverImg}
       />
       <View style={styles.infoArea}>

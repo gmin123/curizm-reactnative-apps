@@ -134,7 +134,7 @@ export const OffExhiArtworks: React.FC<Props> = ({
         source={
           item.thumbnail
             ? { uri: item.thumbnail }
-            : require("../../../../assets/images/icon.png")
+            : require("../../../../assets/images/Cicon.png")
         }
         style={S.thumb}
       />

@@ -222,7 +222,7 @@ export default function DownloadManage() {
           source={
             item.coverImageUri
               ? { uri: item.coverImageUri }
-              : require("../../../assets/images/icon.png")
+              : require("../../../assets/images/Cicon.png")
           }
           style={styles.thumb}
         />

@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { getExhibitionArtworks } from "../../../../api/exhi/getExhibitionArtworks";
 
@@ -120,7 +120,7 @@ export const ExhiArtworks: React.FC<Props> = ({
         source={
           item.thumbnail
             ? { uri: item.thumbnail }
-            : require("../../../../assets/images/icon.png")
+            : require("../../../../assets/images/Cicon.png")
         }
         style={S.thumb}
       />

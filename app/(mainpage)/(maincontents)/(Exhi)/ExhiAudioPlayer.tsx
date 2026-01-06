@@ -76,6 +76,14 @@ export default function ExhiAudioPlayer({
   const [showGuideModal, setShowGuideModal] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
+  useEffect(() => {
+  setIsInitialized(false);
+}, [params.singleWork]);
+useEffect(() => {
+  subtitlesUrlMapRef.current = {};
+  setSubtitlesUrlMap({});
+}, [params.singleWork]);
+
   const [isInitialized, setIsInitialized] = useState(false);
   const [subtitlesUrlMap, setSubtitlesUrlMap] = useState<Record<string, string>>({}); // ✅ 자막 URL 캐시
   const subtitlesUrlMapRef = useRef<Record<string, string>>({}); // ✅ ref 버전
@@ -231,37 +239,68 @@ useEffect(() => {
 
   // ✅ 자막 URL 불러오기
   setIsLoading(true);
-  (async () => {
-    try {
-      const playerData = await getExhibitionPlayer(
+ (async () => {
+  try {
+    let playerData: any = null;
+
+    // 🔥 핵심 분기
+    if (currentItem.exhibitionId && currentItem.exhibitionId.trim() !== "") {
+      // ✅ 전시 작품 (exhibition 기반)
+      playerData = await getExhibitionPlayer(
         currentItem.exhibitionId,
         currentItem.id
       );
+    } else {
+      // ✅ 단일 작품 (artwork 단독)
+      const res = await fetch(
+        `https://api.curizm.io/api/v1/exhibition/player?artworkId=${encodeURIComponent(
+          currentItem.id
+        )}&type=artwork`
+      );
 
-      let subtitleUrl = "";
-      if (playerData?.tts?.subtitlesUrl) {
-        subtitleUrl = playerData.tts.subtitlesUrl;
-      } else if (playerData.subtitles) {
-        subtitleUrl = playerData.subtitles;
+      if (!res.ok) {
+        throw new Error(`Failed to load player: ${res.status}`);
       }
 
-      // ✅ state와 ref에 저장 (캐시)
-      if (subtitleUrl) {
-        subtitlesUrlMapRef.current = {
-          ...subtitlesUrlMapRef.current,
-          [currentItem.id]: subtitleUrl
-        };
-        setSubtitlesUrlMap(subtitlesUrlMapRef.current);
-      }
-
-      setIsLoading(false);
-      onUpdateCurrentItem?.(currentItem);
-    } catch (err) {
-      console.error("❌ 자막 로드 실패:", err);
-      setIsLoading(false);
-      onUpdateCurrentItem?.(currentItem);
+      playerData = await res.json();
     }
-  })();
+
+    // -------------------------
+    // 자막 URL 추출
+    // -------------------------
+    let subtitleUrl = "";
+
+    if (playerData?.tts?.subtitlesUrl) {
+      subtitleUrl = playerData.tts.subtitlesUrl;
+    } else if (playerData?.subtitles) {
+      subtitleUrl = playerData.subtitles;
+    } else if (playerData?.ttsVoices?.length) {
+      const defaultVoice =
+        playerData.ttsVoices.find((v: any) => v.isDefault) ||
+        playerData.ttsVoices[0];
+      subtitleUrl = defaultVoice?.subtitlesUrl ?? "";
+    }
+
+    // -------------------------
+    // 캐시 저장 (state + ref)
+    // -------------------------
+    if (subtitleUrl) {
+      subtitlesUrlMapRef.current = {
+        ...subtitlesUrlMapRef.current,
+        [currentItem.id]: subtitleUrl,
+      };
+      setSubtitlesUrlMap(subtitlesUrlMapRef.current);
+    }
+
+    setIsLoading(false);
+    onUpdateCurrentItem?.(currentItem);
+  } catch (err) {
+    console.error("❌ 자막 로드 실패:", err);
+    setIsLoading(false);
+    onUpdateCurrentItem?.(currentItem);
+  }
+})();
+
 }, [currentIndex, trackList.length]);
 
   const prevTrack = async () => {
@@ -381,7 +420,10 @@ useEffect(() => {
     console.log("🎬 [자동 재생 체크]", { isVisible, currentIndex, len: trackList.length });
   
     // 트랙이 준비되었으면 바로 재생
-    if (trackList.length > 0 && currentIndex !== null) {
+    if (  trackList.length > 0 &&
+  currentIndex !== null &&
+  trackList[currentIndex]?.sound &&
+  trackList[currentIndex].sound.trim() !== "") {
       console.log("🎬 [자동 재생 실행]:", trackList[currentIndex]?.title);
       play(currentIndex);
     } else {
@@ -472,7 +514,7 @@ useEffect(() => {
             source={
               currentItem.thumbnail
                 ? { uri: currentItem.thumbnail }
-                : require("../../../../assets/images/icon.png")
+                : require("../../../../assets/images/Cicon.png")
             }
             style={styles.coverImage}
             resizeMode="cover"
@@ -553,7 +595,11 @@ useEffect(() => {
           </TouchableOpacity>
 
           {/* ✅ 자막 컴포넌트 (자동추론된 subtitlesUrl 적용) */}
-          <ExhiSubtit exhibition={exhibitionData} />
+    <ExhiSubtit
+  key={`${exhibitionData.id}-${exhibitionData.subtitlesUrl}`}
+  exhibition={exhibitionData}
+/>
+
         </View>
       </View>
     </>

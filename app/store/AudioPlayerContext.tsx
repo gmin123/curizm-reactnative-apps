@@ -11,12 +11,14 @@ type AudioPlayerContextType = {
   duration: number;
   subtitlesUrl: string;
   isFullScreenPlayerVisible: boolean;
+
   setTrackList: (list: AudioItem[]) => void;
   setCurrentIndex: (idx: number) => void;
   setIsPlaying: (b: boolean) => void;
   setPosition: (ms: number) => void;
   setDuration: (ms: number) => void;
   setFullScreenPlayerVisible: (visible: boolean) => void;
+
   play: (idx?: number) => Promise<void>;
   pause: () => Promise<void>;
   togglePlay: () => Promise<void>;
@@ -26,7 +28,6 @@ type AudioPlayerContextType = {
 };
 
 const AudioPlayerContext = createContext<AudioPlayerContextType>({} as AudioPlayerContextType);
-
 export const useAudioPlayer = () => useContext(AudioPlayerContext);
 
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -36,18 +37,21 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullScreenPlayerVisible, setFullScreenPlayerVisible] = useState(false);
+
   const playbackInstance = useRef<Audio.Sound | null>(null);
+
+  // ✅ “로딩 중에 또 다른 play() 호출”이 들어오면 이전 작업 무효화하기 위한 토큰
+  const loadTokenRef = useRef(0);
 
   const subtitlesUrl = trackList[currentIndex]?.subtitlesUrl || "";
 
-  // ✅ 오디오 모드 설정 (가장 중요)
   useEffect(() => {
     (async () => {
       try {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
           staysActiveInBackground: true,
-          playsInSilentModeIOS: true, // ✅ 무음 모드에서도 재생 가능
+          playsInSilentModeIOS: true,
           shouldDuckAndroid: false,
           playThroughEarpieceAndroid: false,
         });
@@ -55,10 +59,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       } catch (e) {
         console.error("❌ Audio mode 설정 실패:", e);
       }
-    })();987
+    })();
   }, []);
 
-  // ✅ 재생 상태 업데이트
   const onPlaybackStatusUpdate = (status: any) => {
     if (!status.isLoaded) return;
     setIsPlaying(status.isPlaying);
@@ -66,70 +69,87 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setDuration(status.durationMillis || 0);
   };
 
-  // ✅ 기존 사운드 정리
   const unloadCurrentSound = async () => {
-    if (playbackInstance.current) {
-      try {
-        await playbackInstance.current.stopAsync();
-        await playbackInstance.current.unloadAsync();
-      } catch (e) {
-        console.warn("🧹 unload 실패 (무시 가능):", e);
-      }
-      playbackInstance.current = null;
-    }
+    if (!playbackInstance.current) return;
+    try {
+      await playbackInstance.current.stopAsync();
+    } catch {}
+    try {
+      await playbackInstance.current.unloadAsync();
+    } catch {}
+    playbackInstance.current = null;
+
+    // 상태도 초기화 (이전 트랙 잔상 방지)
+    setIsPlaying(false);
+    setPosition(0);
+    setDuration(0);
   };
 
-  // ✅ 새 오디오 로드 및 준비
   const loadAudio = async (idx: number) => {
+    // ✅ 토큰 갱신: 이 호출 이전에 시작된 로딩은 무효
+    const myToken = ++loadTokenRef.current;
+
+    // ✅ 가장 중요: “사운드 검증 전에” 무조건 이전 사운드 unload
+    await unloadCurrentSound();
+
+    const item = trackList[idx];
+    const url = item?.sound?.trim?.() || "";
+
+    if (!item || !url) {
+      console.warn("⚠️ 유효하지 않은 사운드 URL(로드 중단):", item);
+      return { ok: false as const };
+    }
+
     try {
-      const item = trackList[idx];
-      if (!item || !item.sound) {
-        console.warn("⚠️ 유효하지 않은 사운드 URL:", item);
-        return;
-      }
-
-      await unloadCurrentSound(); // 기존 오디오 정리
-
       const { sound } = await Audio.Sound.createAsync(
-        { uri: item.sound },
+        { uri: url },
         { shouldPlay: false, positionMillis: 0 },
         onPlaybackStatusUpdate
       );
+
+      // ✅ 로딩 도중에 다른 로딩이 시작되었으면 지금 로딩 결과는 폐기
+      if (myToken !== loadTokenRef.current) {
+        try {
+          await sound.unloadAsync();
+        } catch {}
+        return { ok: false as const };
+      }
 
       playbackInstance.current = sound;
       setPosition(0);
       setDuration(0);
       setIsPlaying(false);
+
+      return { ok: true as const };
     } catch (err) {
       console.error("[AudioPlayer] loadAudio error:", err);
+      return { ok: false as const };
     }
   };
 
-  // ✅ 재생
   const play = async (idx = currentIndex) => {
     try {
       console.log("🎵 [AudioPlayer] play 호출:", idx, trackList[idx]?.title);
-      
-      // ✅ currentIndex 업데이트 (next/prev에서 호출 시)
-      if (idx !== currentIndex) {
-        setCurrentIndex(idx);
-      }
-      
-      await loadAudio(idx);
 
-      if (playbackInstance.current) {
-        await playbackInstance.current.playAsync();
-        setIsPlaying(true);
-        console.log("✅ [AudioPlayer] 재생 시작 성공");
-      } else {
-        console.warn("⚠️ [AudioPlayer] playbackInstance 없음");
+      // ✅ 인덱스 업데이트
+      if (idx !== currentIndex) setCurrentIndex(idx);
+
+      const loaded = await loadAudio(idx);
+
+      // ✅ 여기서 ok 아니면 절대 playAsync 하지 않음 (이전 트랙 재생 방지)
+      if (!loaded.ok || !playbackInstance.current) {
+        console.warn("⛔ play 중단: 오디오 로드 실패/사운드 없음");
+        return;
       }
+
+      await playbackInstance.current.playAsync();
+      setIsPlaying(true);
+      console.log("✅ [AudioPlayer] 재생 시작 성공");
     } catch (err) {
       console.error("[AudioPlayer] play error:", err);
     }
   };
 
-  // ✅ 일시정지
   const pause = async () => {
     try {
       await playbackInstance.current?.pauseAsync();
@@ -139,7 +159,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // ✅ 재생 / 일시정지 토글
   const togglePlay = async () => {
     try {
       const sound = playbackInstance.current;
@@ -148,23 +167,18 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return;
       }
 
-      // ✅ state를 직접 확인 (getStatusAsync보다 빠름)
-      console.log("🎛️ [AudioPlayer] togglePlay:", isPlaying ? "일시정지" : "재생");
       if (isPlaying) {
         await sound.pauseAsync();
         setIsPlaying(false);
-        console.log("⏸️ [AudioPlayer] 일시정지됨");
       } else {
         await sound.playAsync();
         setIsPlaying(true);
-        console.log("▶️ [AudioPlayer] 재생됨");
       }
     } catch (err) {
       console.error("[AudioPlayer] togglePlay error:", err);
     }
   };
 
-  // ✅ 특정 위치로 이동
   const seekTo = async (ms: number) => {
     try {
       await playbackInstance.current?.setPositionAsync(ms);
@@ -174,27 +188,19 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // ✅ 다음 트랙
   const next = async () => {
     if (currentIndex < trackList.length - 1) {
-      console.log("⏭️ 다음 트랙:", currentIndex + 1);
       await play(currentIndex + 1);
-    } else {
-      console.log("⏹️ 마지막 트랙입니다");
     }
   };
 
-  // ✅ 이전 트랙
   const prev = async () => {
     if (currentIndex > 0) {
-      console.log("⏮️ 이전 트랙:", currentIndex - 1);
       await play(currentIndex - 1);
-    } else {
-      console.log("⏹️ 첫 트랙입니다");
     }
   };
 
-  const audioPlayerValue: AudioPlayerContextType = {
+  const value: AudioPlayerContextType = {
     trackList,
     setTrackList,
     currentIndex,
@@ -216,9 +222,5 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     subtitlesUrl,
   };
 
-  return (
-    <AudioPlayerContext.Provider value={audioPlayerValue}>
-      {children}
-    </AudioPlayerContext.Provider>
-  );
+  return <AudioPlayerContext.Provider value={value}>{children}</AudioPlayerContext.Provider>;
 };

@@ -1,7 +1,15 @@
-
 import React, { useEffect, useState } from "react";
-import { Alert, BackHandler, Button, ScrollView, StyleSheet, Text, View } from "react-native";
-// import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  Alert,
+  BackHandler,
+  Button,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import TopNavigation from "../(top)/TopNavigation";
 import { AudioPlayerProvider } from "../store/AudioPlayerContext";
 import AskQuri from "./(askquri)/askQuri";
@@ -16,34 +24,21 @@ import CustomTabBar from "./(tabbar)/CustomTabBar";
 import HomeAllExhi from "./HomeAllExhi";
 import RecommendedArtworks from "./RecommendedArtworks";
 
-
-
+/* -----------------------------
+   개인정보 동의 훅
+------------------------------ */
 const useConsent = () => {
-  const [consentGiven, setConsentGiven] = useState<boolean | null>(null); // 동의 여부를 null로 초기화
+  const [consentGiven, setConsentGiven] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkConsent = async () => {
-      // 테스트용: 항상 동의 모달 표시
-      setConsentGiven(false);
-      
-      // // 저장된 동의 여부 확인 (테스트용 주석처리)
-      // const consent = await AsyncStorage.getItem("userConsent");
-      // if (consent === "true") {
-      //   setConsentGiven(true); // 이미 동의한 경우
-      // } else {
-      //   setConsentGiven(false); // 동의하지 않은 경우
-      // }
-    };
-    checkConsent();
+    // 테스트용: 항상 false
+    setConsentGiven(true);
   }, []);
 
-  const handleConsent = async (isGiven: boolean) => {
+  const handleConsent = (isGiven: boolean) => {
     setConsentGiven(isGiven);
-    // await AsyncStorage.setItem("userConsent", isGiven ? "true" : "false");
-    // 테스트용: AsyncStorage 사용하지 않음
 
     if (!isGiven) {
-      // 동의하지 않으면 앱 종료
       Alert.alert(
         "동의가 필요합니다",
         "개인정보 수집에 동의하지 않으면 앱을 사용할 수 없습니다.",
@@ -53,43 +48,46 @@ const useConsent = () => {
     }
   };
 
-  return [consentGiven, handleConsent] as const;
+  return { consentGiven, handleConsent };
 };
 
+/* -----------------------------
+   메인 화면
+------------------------------ */
 export default function Index() {
-  const [consentGiven, handleConsent] = useConsent();
+  const { consentGiven, handleConsent } = useConsent();
 
-  // 동의하지 않으면 동의 창을 계속 띄움
-  if (consentGiven === false) {
-    return (
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.title}>개인정보 수집 동의</Text>
-          <Text style={styles.subtitle}>
-            본 앱은 사용자 개인정보를 수집하여 보다 나은 서비스를 제공하려고 합니다. 동의하십니까?
-          </Text>
-          <View style={styles.buttons}>
-            <Button
-              title="동의"
-              color="#FF6A3D" // 원하는 색상으로 변경
-              onPress={() => handleConsent(true)}
-            />
-            <Button
-              title="동의하지 않음"
-              color="#D1D5DB" // 회색 버튼으로 처리
-              onPress={() => handleConsent(false)}
-            />
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  // 동의 후 메인 페이지 표시
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <AudioPlayerProvider>
         <TopNavigation />
+
+        {/* 🔥 동의 모달 (Overlay 방식) */}
+        {consentGiven === false && (
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.title}>개인정보 수집 동의</Text>
+              <Text style={styles.subtitle}>
+                본 앱은 사용자 개인정보를 수집하여 보다 나은 서비스를 제공합니다.
+                동의하시겠습니까?
+              </Text>
+
+              <View style={styles.buttons}>
+                <Button
+                  title="동의"
+                  color="#FF6A3D"
+                  onPress={() => handleConsent(true)}
+                />
+                <Button
+                  title="동의하지 않음"
+                  color="#D1D5DB"
+                  onPress={() => handleConsent(false)}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
@@ -111,44 +109,51 @@ export default function Index() {
 
         <MiniAudioPlayer />
       </AudioPlayerProvider>
-    </View>
+    </SafeAreaView>
   );
 }
 
+/* -----------------------------
+   스타일
+------------------------------ */
 const styles = StyleSheet.create({
-  modalContainer: {
+  safeArea: {
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  modalContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // 반투명 배경
   },
   modalContent: {
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 10,
-    width: "80%",
+    width: "85%",
     alignItems: "center",
-    justifyContent: "center",
   },
   title: {
     fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 20,
     color: "#4B5563",
   },
   buttons: {
     width: "100%",
-    flexDirection: "column",
     gap: 12,
-  },
-  container: {
-    flex: 1,
   },
   scrollView: {
     flex: 1,
